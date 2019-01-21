@@ -8,12 +8,14 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
-class ToDoListViewController: UITableViewController {
+class ToDoListViewController: SwipeTableViewController {
     
     let realm = try! Realm()
     var currentDate = Date()
     var itemArray: Results<Item>?
+    @IBOutlet var searchBar: UISearchBar!
     
     var selectedCategory : Category? {
         didSet{
@@ -30,12 +32,48 @@ class ToDoListViewController: UITableViewController {
     override func viewDidLoad() {
         
         super.viewDidLoad()
-   
-       
-        //if let items = defaults.array(forKey: "ToDoListArray") as? [Items] {
-        //itemArray = items
+        tableView.separatorStyle = .none
         
-      //  }
+      
+
+    }
+    // gets called later than viewDidLoad -> nagiuationController will not be nil
+    override func viewWillAppear(_ animated: Bool) {
+        
+        // set the title as the category title
+        title = selectedCategory!.name
+        
+        guard let colourHex = selectedCategory?.colour else { fatalError(" colour hex is nil")}
+        
+      updateNavBar(withHexCode: colourHex)
+
+   
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        
+        updateNavBar(withHexCode: "0DC6DB")
+        
+        
+    }
+    
+    //Mark: - NavBar Set up Method
+    
+    func updateNavBar(withHexCode colourHexCode: String){
+        
+         guard let navBar = navigationController?.navigationBar else { fatalError("Naviguation Controller does not exist") } // guard it if it is nil throw this fatal error
+        
+        guard let navBarColour = UIColor(hexString: colourHexCode) else {fatalError("navBarColour is nil")}
+        
+        navBar.barTintColor = navBarColour
+        
+        navBar.tintColor = ContrastColorOf(navBarColour, returnFlat: true)
+        
+        navBar.largeTitleTextAttributes = [NSAttributedStringKey.foregroundColor : ContrastColorOf(navBarColour, returnFlat: true)]
+        
+        searchBar.barTintColor = navBarColour
+        
+        
     }
     
 
@@ -46,13 +84,19 @@ class ToDoListViewController: UITableViewController {
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
+       let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
         if let item = itemArray?[indexPath.row]{
             
             cell.textLabel?.text = item.title
             
             cell.accessoryType = item.done ? .checkmark : .none
+            
+            if let color = UIColor(hexString:(selectedCategory!.colour))?.darken(byPercentage: CGFloat(indexPath.row)/CGFloat(itemArray!.count)) {
+                cell.backgroundColor = color
+                cell.textLabel?.textColor = ContrastColorOf(color, returnFlat: true)
+            }
+            
         }else{
             cell.textLabel?.text = "No items added"
         }
@@ -94,6 +138,7 @@ class ToDoListViewController: UITableViewController {
                         let newItem = Item()
                         newItem.title = textField.text!
                         newItem.date = Date()
+                        newItem.colour = currentCategory.colour
                         currentCategory.items.append(newItem)
                     }
                 } catch {
@@ -119,6 +164,7 @@ class ToDoListViewController: UITableViewController {
             
             
         }
+    
     //Mark: - Model Manipulation Methods
     
 //    func save(item: Item){
@@ -156,6 +202,19 @@ class ToDoListViewController: UITableViewController {
         tableView.reloadData()
        
 
+    }
+    
+    override func updateModel(at indexPath: IndexPath) {
+        if let itemForDeletion = self.itemArray?[indexPath.row]{
+            do {
+                try self.realm.write{
+                    self.realm.delete(itemForDeletion)
+                }
+            }
+            catch{
+                print("error deleting item")
+            }
+        }
     }
     
  

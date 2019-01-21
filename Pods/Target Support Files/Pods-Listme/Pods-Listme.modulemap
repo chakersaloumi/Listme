@@ -1,0 +1,6 @@
+framework module Pods_Listme {
+  umbrella header "Pods-Listme-umbrella.h"
+
+  export *
+  module * { export * }
+}
